@@ -406,6 +406,11 @@ impl<S: squeue::EntryMarker, C: cqueue::EntryMarker> Builder<S, C> {
         self
     }
 
+    pub fn setup_no_offload(&mut self) -> &mut Self {
+        self.params.flags |= 1 << 14;
+        self
+    }
+
     /// Build an [IoUring], with the specified number of entries in the submission queue and
     /// completion queue unless [`setup_cqsize`](Self::setup_cqsize) has been called.
     pub fn build(&self, entries: u32) -> io::Result<IoUring<S, C>> {
