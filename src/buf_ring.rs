@@ -86,7 +86,7 @@ impl BufRingSubmissions<'_> {
             next_buf.addr = unsafe { self.buf_ptr.add(uindex * self.entry_size) } as u64;
             next_buf.bid = index;
         }
-        self.tail += 1;
+        self.tail += &1;
 
         unsafe { &mut *self.ring_ptr.add(uindex) }
     }
