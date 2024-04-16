@@ -19,9 +19,8 @@ impl BufRing {
         {
             let mut s = this.submissions();
             for i in 0u16..ring_entries {
-                let buf = unsafe { s._recycle_by_index(usize::from(i)) };
+                let buf = unsafe { s._recycle_by_index(i) };
                 buf.len = entry_size;
-                buf.bid = i;
             }
         }
 
@@ -63,9 +62,13 @@ impl BufRingSubmissions<'_> {
         unsafe { &*self.tail_ptr }.store(self.tail.0 as u16, atomic::Ordering::Release);
     }
 
+    // TODO add drop type that recycles if not consumed
     pub unsafe fn get(&mut self, flags: u32, len: usize) -> &mut [u8] {
-        let buf = unsafe { &mut *self.ring_ptr.add(Self::flags_to_index(flags).into()) };
-        unsafe { slice::from_raw_parts_mut(buf.addr as *mut u8, len) }
+        let buf = unsafe {
+            self.buf_ptr
+                .add(usize::from(Self::flags_to_index(flags)) * self.entry_size)
+        };
+        unsafe { slice::from_raw_parts_mut(buf.cast(), len) }
     }
 
     pub unsafe fn recycle(&mut self, flags: u32) {
@@ -73,17 +76,19 @@ impl BufRingSubmissions<'_> {
     }
 
     pub unsafe fn recycle_by_index(&mut self, index: u16) {
-        self._recycle_by_index(usize::from(index));
+        self._recycle_by_index(index);
     }
 
-    unsafe fn _recycle_by_index(&mut self, index: usize) -> &mut sys::io_uring_buf {
+    unsafe fn _recycle_by_index(&mut self, index: u16) -> &mut sys::io_uring_buf {
+        let uindex = usize::from(index);
         {
             let next_buf = unsafe { &mut *self.ring_ptr.add(self.tail.0 & self.tail_mask) };
-            next_buf.addr = unsafe { self.buf_ptr.add(index * self.entry_size) } as u64;
+            next_buf.addr = unsafe { self.buf_ptr.add(uindex * self.entry_size) } as u64;
+            next_buf.bid = index;
         }
         self.tail += 1;
 
-        unsafe { &mut *self.ring_ptr.add(index) }
+        unsafe { &mut *self.ring_ptr.add(uindex) }
     }
 
     pub fn flags_to_index(flags: u32) -> u16 {
