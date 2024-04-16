@@ -1,3 +1,5 @@
+use std::mem::ManuallyDrop;
+use std::ops::{Deref, DerefMut};
 use std::{convert::TryFrom, marker::PhantomData, num::Wrapping, slice, sync::atomic};
 
 use crate::{sys, util::Mmap};
@@ -57,18 +59,19 @@ pub struct BufRingSubmissions<'ctx> {
     _marker: PhantomData<&'ctx ()>,
 }
 
-impl BufRingSubmissions<'_> {
+impl<'a> BufRingSubmissions<'a> {
     pub fn sync(&mut self) {
         unsafe { &*self.tail_ptr }.store(self.tail.0 as u16, atomic::Ordering::Release);
     }
 
-    // TODO add drop type that recycles if not consumed
-    pub unsafe fn get(&mut self, flags: u32, len: usize) -> &mut [u8] {
-        let buf = unsafe {
-            self.buf_ptr
-                .add(usize::from(Self::flags_to_index(flags)) * self.entry_size)
-        };
-        unsafe { slice::from_raw_parts_mut(buf.cast(), len) }
+    pub unsafe fn get(&mut self, flags: u32, len: usize) -> Buf<'_, 'a> {
+        let index = Self::flags_to_index(flags);
+        let buf = unsafe { self.buf_ptr.add(usize::from(index) * self.entry_size) };
+        Buf {
+            buf: unsafe { slice::from_raw_parts_mut(buf.cast(), len) },
+            index,
+            submissions: self,
+        }
     }
 
     pub unsafe fn recycle(&mut self, flags: u32) {
@@ -91,7 +94,7 @@ impl BufRingSubmissions<'_> {
         unsafe { &mut *self.ring_ptr.add(uindex) }
     }
 
-    pub fn flags_to_index(flags: u32) -> u16 {
+    fn flags_to_index(flags: u32) -> u16 {
         u16::try_from(flags >> sys::IORING_CQE_BUFFER_SHIFT).unwrap()
     }
 }
@@ -99,5 +102,40 @@ impl BufRingSubmissions<'_> {
 impl Drop for BufRingSubmissions<'_> {
     fn drop(&mut self) {
         self.sync()
+    }
+}
+
+pub struct Buf<'a, 'b> {
+    buf: &'a mut [u8],
+    index: u16,
+    submissions: &'a mut BufRingSubmissions<'b>,
+}
+
+impl Deref for Buf<'_, '_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.buf
+    }
+}
+
+impl DerefMut for Buf<'_, '_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.buf
+    }
+}
+
+impl Buf<'_, '_> {
+    pub fn into_index(self) -> u16 {
+        let me = ManuallyDrop::new(self);
+        me.index
+    }
+}
+
+impl Drop for Buf<'_, '_> {
+    fn drop(&mut self) {
+        unsafe {
+            self.submissions.recycle_by_index(self.index);
+        }
     }
 }
