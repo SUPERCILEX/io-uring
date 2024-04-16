@@ -19,7 +19,7 @@ impl BufRing {
         {
             let mut s = this.submissions();
             for i in 0u16..ring_entries {
-                let buf = unsafe { s.recycle_by_index(usize::from(i)) };
+                let buf = unsafe { s._recycle_by_index(usize::from(i)) };
                 buf.len = entry_size;
                 buf.bid = i;
             }
@@ -63,13 +63,20 @@ impl BufRingSubmissions<'_> {
         unsafe { &*self.tail_ptr }.store(self.tail.0 as u16, atomic::Ordering::Release);
     }
 
-    pub unsafe fn recycle(&mut self, flags: u32, len: usize) -> &mut [u8] {
-        let buf =
-            self.recycle_by_index(usize::try_from(flags >> sys::IORING_CQE_BUFFER_SHIFT).unwrap());
+    pub unsafe fn get(&mut self, flags: u32, len: usize) -> &mut [u8] {
+        let buf = unsafe { &mut *self.ring_ptr.add(Self::flags_to_index(flags).into()) };
         unsafe { slice::from_raw_parts_mut(buf.addr as *mut u8, len) }
     }
 
-    unsafe fn recycle_by_index(&mut self, index: usize) -> &mut sys::io_uring_buf {
+    pub unsafe fn recycle(&mut self, flags: u32) {
+        self.recycle_by_index(Self::flags_to_index(flags));
+    }
+
+    pub unsafe fn recycle_by_index(&mut self, index: u16) {
+        self._recycle_by_index(usize::from(index));
+    }
+
+    unsafe fn _recycle_by_index(&mut self, index: usize) -> &mut sys::io_uring_buf {
         {
             let next_buf = unsafe { &mut *self.ring_ptr.add(self.tail.0 & self.tail_mask) };
             next_buf.addr = unsafe { self.buf_ptr.add(index * self.entry_size) } as u64;
@@ -77,6 +84,10 @@ impl BufRingSubmissions<'_> {
         self.tail += 1;
 
         unsafe { &mut *self.ring_ptr.add(index) }
+    }
+
+    pub fn flags_to_index(flags: u32) -> u16 {
+        u16::try_from(flags >> sys::IORING_CQE_BUFFER_SHIFT).unwrap()
     }
 }
 
