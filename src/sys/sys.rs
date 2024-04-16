@@ -125,6 +125,7 @@ pub const IORING_NOTIF_USAGE_ZC_COPIED: u32 = 2147483648;
 pub const IORING_ACCEPT_MULTISHOT: u32 = 1;
 pub const IORING_MSG_RING_CQE_SKIP: u32 = 1;
 pub const IORING_MSG_RING_FLAGS_PASS: u32 = 2;
+pub const IORING_FIXED_FD_NO_CLOEXEC: u32 = 1;
 pub const IORING_CQE_F_BUFFER: u32 = 1;
 pub const IORING_CQE_F_MORE: u32 = 2;
 pub const IORING_CQE_F_SOCK_NONEMPTY: u32 = 4;
@@ -501,6 +502,7 @@ pub union io_uring_sqe__bindgen_ty_3 {
     pub uring_cmd_flags: __u32,
     pub waitid_flags: __u32,
     pub futex_flags: __u32,
+    pub install_fd_flags: __u32,
 }
 #[test]
 fn bindgen_test_layout_io_uring_sqe__bindgen_ty_3() {
@@ -725,6 +727,16 @@ fn bindgen_test_layout_io_uring_sqe__bindgen_ty_3() {
             stringify!(io_uring_sqe__bindgen_ty_3),
             "::",
             stringify!(futex_flags)
+        )
+    );
+    assert_eq!(
+        unsafe { ::core::ptr::addr_of!((*ptr).install_fd_flags) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(io_uring_sqe__bindgen_ty_3),
+            "::",
+            stringify!(install_fd_flags)
         )
     );
 }
@@ -1155,7 +1167,8 @@ pub const IORING_OP_WAITID: io_uring_op = 50;
 pub const IORING_OP_FUTEX_WAIT: io_uring_op = 51;
 pub const IORING_OP_FUTEX_WAKE: io_uring_op = 52;
 pub const IORING_OP_FUTEX_WAITV: io_uring_op = 53;
-pub const IORING_OP_LAST: io_uring_op = 54;
+pub const IORING_OP_FIXED_FD_INSTALL: io_uring_op = 54;
+pub const IORING_OP_LAST: io_uring_op = 55;
 pub type io_uring_op = libc::c_uint;
 pub const IORING_MSG_DATA: _bindgen_ty_5 = 0;
 pub const IORING_MSG_SEND_FD: _bindgen_ty_5 = 1;
@@ -1616,7 +1629,8 @@ pub const IORING_REGISTER_PBUF_RING: _bindgen_ty_7 = 22;
 pub const IORING_UNREGISTER_PBUF_RING: _bindgen_ty_7 = 23;
 pub const IORING_REGISTER_SYNC_CANCEL: _bindgen_ty_7 = 24;
 pub const IORING_REGISTER_FILE_ALLOC_RANGE: _bindgen_ty_7 = 25;
-pub const IORING_REGISTER_LAST: _bindgen_ty_7 = 26;
+pub const IORING_REGISTER_PBUF_STATUS: _bindgen_ty_7 = 26;
+pub const IORING_REGISTER_LAST: _bindgen_ty_7 = 27;
 pub const IORING_REGISTER_USE_REGISTERED_RING: _bindgen_ty_7 = 2147483648;
 pub type _bindgen_ty_7 = libc::c_uint;
 #[repr(C)]
@@ -2477,6 +2491,59 @@ fn bindgen_test_layout_io_uring_buf_reg() {
         concat!(
             "Offset of field: ",
             stringify!(io_uring_buf_reg),
+            "::",
+            stringify!(resv)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct io_uring_buf_status {
+    pub buf_group: __u32,
+    pub head: __u32,
+    pub resv: [__u32; 8usize],
+}
+#[test]
+fn bindgen_test_layout_io_uring_buf_status() {
+    const UNINIT: ::core::mem::MaybeUninit<io_uring_buf_status> =
+        ::core::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::core::mem::size_of::<io_uring_buf_status>(),
+        40usize,
+        concat!("Size of: ", stringify!(io_uring_buf_status))
+    );
+    assert_eq!(
+        ::core::mem::align_of::<io_uring_buf_status>(),
+        4usize,
+        concat!("Alignment of ", stringify!(io_uring_buf_status))
+    );
+    assert_eq!(
+        unsafe { ::core::ptr::addr_of!((*ptr).buf_group) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(io_uring_buf_status),
+            "::",
+            stringify!(buf_group)
+        )
+    );
+    assert_eq!(
+        unsafe { ::core::ptr::addr_of!((*ptr).head) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(io_uring_buf_status),
+            "::",
+            stringify!(head)
+        )
+    );
+    assert_eq!(
+        unsafe { ::core::ptr::addr_of!((*ptr).resv) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(io_uring_buf_status),
             "::",
             stringify!(resv)
         )
