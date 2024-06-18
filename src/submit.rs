@@ -455,8 +455,7 @@ impl<'a> Submitter<'a> {
     ) -> io::Result<BufRing> {
         let bytes = || {
             usize::from(ring_entries).checked_mul(
-                mem::size_of::<sys::io_uring_buf>()
-                    .checked_add(usize::try_from(entry_size).unwrap())?,
+                size_of::<sys::io_uring_buf>().checked_add(usize::try_from(entry_size).unwrap())?,
             )
         };
 
